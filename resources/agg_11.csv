@@ -1,0 +1,7 @@
+Algorithm,Symmetric,Cached,Search Time,Recall
+VQ,Symmetric,Cached,0.019790472984313925,0.0892
+VQ,Asymmetric,Not Cached,0.04696765899658198,0.84088
+brute,Asymmetric,Not Cached,0.1844516324996948,1.0
+PQ,Asymmetric,Cached,0.2663735151290893,0.10427999999999998
+PQ,Symmetric,Cached,0.30718638420104977,0.05836
+PQ,Asymmetric,Not Cached,0.5198763179779052,0.10427999999999998

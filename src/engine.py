@@ -127,13 +127,15 @@ class VectorEngine:
         if symmetric:
             # Less accurate but faster with cache
 
-            # caced paired distances
+            # Cache paired distances between codebook entries
             cached_paired_coarse_distances = Utils.l2_distance(self.codebook, self.codebook)
 
+            # Quantize sub-queries using the codebook
             codebook_indices = self.kmeans.predict(sub_queries).reshape(-1, self.num_subvectors)
             codebook_indices_partitions = np.split(codebook_indices, self.num_subvectors, axis=1)
             for (codebook_indices_partition, sub_keys_indexes_partition) in zip(codebook_indices_partitions, self.sub_keys_indexes_partitions):
                 codebook_indices_partition = codebook_indices_partition.squeeze()
+                # Retrieve coarse distances using the cached paired distances
                 coarse_distances_partition = cached_paired_coarse_distances[codebook_indices_partition[:, np.newaxis], sub_keys_indexes_partition]
                 coarse_distances_partitions.append(coarse_distances_partition)
 
@@ -141,32 +143,36 @@ class VectorEngine:
             # More accurate but slower
             
             if cached:
-                # cache distances for every query
+                # Cache distances for every query
                 num_queries = len(queries)
                 cached_coarse_distances = Utils.l2_distance(sub_queries, self.codebook).reshape(num_queries, self.num_subvectors, -1)
 
-                # split
+                # Split cached coarse distances into partitions
                 cached_coarse_distances_partitions = np.split(cached_coarse_distances, self.num_subvectors, axis=1)
                 for (cached_coarse_distances_partition, sub_keys_indexes_partition) in zip(cached_coarse_distances_partitions, self.sub_keys_indexes_partitions):
                     cached_coarse_distances_partition = cached_coarse_distances_partition.squeeze()
+                    # Retrieve coarse distances for each sub-query using the cached distances
                     coarse_distances_partition = [
                         cached_coarse_distance_partition[sub_keys_indexes_partition]
                         for cached_coarse_distance_partition in cached_coarse_distances_partition
                     ]
                     coarse_distances_partitions.append(coarse_distances_partition)
             else:
-                # without cache
+                # Without cache
                 sub_queries_partitions = np.split(queries, self.num_subvectors, axis=1)
                 coarse_distances_partitions = []
                 for (sub_queries_partition, sub_keys_indexes_partition) in zip(sub_queries_partitions, self.sub_keys_indexes_partitions):
                     sub_keys_partition = self.codebook[sub_keys_indexes_partition]
+                    # Calculate coarse distances between sub-queries and sub-codebooks
                     coarse_distances_partition = Utils.l2_distance(sub_queries_partition, sub_keys_partition)
                     coarse_distances_partitions.append(coarse_distances_partition)
                 
                 coarse_distances = np.sum(coarse_distances_partitions, axis=0)
                 top_k_candidates = np.argpartition(coarse_distances, kth=top_k - 1, axis=1)[:, :top_k]
 
+        # Aggregate coarse distances from different partitions
         coarse_distances = np.sum(coarse_distances_partitions, axis=0)
+        # Find top-k candidates based on coarse distances
         top_k_candidates = np.argpartition(coarse_distances, kth=top_k - 1, axis=1)[:, :top_k]
 
         return top_k_candidates
